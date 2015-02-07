@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(ocv)
 
-# This tells CMake where to start looking for OpenCV.
+# This tells CMake where to start looking for OpenCV (OpenCVConfig.cmake).
 # Useful if you have multiple OpenCV installations. 
 set(OpenCV_DIR /usr/local/share/OpenCV)
 find_package(OpenCV REQUIRED)
@@ -79,6 +79,6 @@ foreach(CPPFILE ${MY_CPPS})
   target_link_libraries(${exename} ${OpenCV_LIBS})
   # Print executable list
   message("  ${exename}")
-endforeach(CPPFILE ${MY_CPPS})
+endforeach()
 
 message("\nExecutables will be installed in ${EXECUTABLE_OUTPUT_PATH}.\n")
