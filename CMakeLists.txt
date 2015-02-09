@@ -1,73 +1,28 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(ocv)
+project(rgbseg)
 
-# This tells CMake where to start looking for OpenCV (OpenCVConfig.cmake).
-# Useful if you have multiple OpenCV installations. 
-set(OpenCV_DIR /usr/local/share/OpenCV)
+# Tell the find_package() macro where to look for OpenCV.
+# Only needed if installed files are not in an expected location.
+#
+# For system-wide install location (default is /usr/local)
+if(EXISTS "${CMAKE_INSTALL_PREFIX}/share/OpenCV/OpenCVConfig.cmake")
+  set(OpenCV_DIR ${CMAKE_INSTALL_PREFIX}/share/OpenCV)
+# For local/custom OpenCV install location (modify/add as needed)
+elseif(EXISTS "$ENV{HOME}/opencv/install/share/OpenCV/OpenCVConfig.cmake")
+  set(OpenCV_DIR $ENV{HOME}/opencv/install/share/OpenCV)
+endif()
+
 find_package(OpenCV REQUIRED)
+message("\nOpenCV_DIR: " ${OpenCV_DIR})
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 set(SRC ${PROJECT_SOURCE_DIR}/src)
-
-message("\nOpenCV_DIR: " ${OpenCV_DIR})
-
-# macro(LIST_REPLACE LIST INDEX NEWVALUE)
-#     list(INSERT ${LIST} ${INDEX} ${NEWVALUE})
-#     MATH(EXPR __INDEX "${INDEX} + 1")
-#     list (REMOVE_AT ${LIST} ${__INDEX})
-# endmacro(LIST_REPLACE)
-
-
-# set (CVDIR $ENV{HOME}/opencv/install)
-# include_directories(${CVDIR}/include)
-# link_directories(${CVDIR}/lib)
-
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
-# Get list of .cpp source files. 
-# CMake must be run if any new files are added.
+# Get list of .cpp files. CMake must be re-run whenever new files are added.
 file(GLOB MY_CPPS RELATIVE ${SRC} ${SRC}/*.cpp)
-
-
-# Print list of include and library search directories
-message("\nInclude directories:")
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message("  ${dir}")
-endforeach()
-message("\nLibrary directories:")
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY LINK_DIRECTORIES)
-foreach(dir ${dirs})
-  message("  ${dir}")
-endforeach()
-
-# # Get list of shared libraries, and modify libopencv_foo.so to opencv_foo.
-# # This a hack to get the equivalent of OpenCV_LIBS.
-# file(GLOB CV_LIBS RELATIVE ${CVDIR}/lib ${CVDIR}/lib/*.so)
-# foreach(lib ${CV_LIBS})
-#   list(FIND CV_LIBS ${lib} idx)
-#   # message ("${idx} ${lib}")
-#   string(REPLACE ".so" "" tmp1 ${lib})
-#   string(REPLACE "libopencv" "opencv" tmp2 ${tmp1})
-#   LIST_REPLACE(CV_LIBS ${idx} ${tmp2})
-# endforeach()
-
-# foreach(lib ${CV_LIBS})
-#   message (${lib})
-# endforeach()
-# message("\n")
-
-# message("\nCMAKE_MODULE_PATH:")
-# message(" ${CMAKE_MODULE_PATH}")
-# message("\nOpenCV_LIBS:")
-# message(${OpenCV_LIBS})
-
-# foreach(lib ${OpenCV_LIBS})
-#   message(" ${lib}")
-# endforeach()
-# message("\n")
 
 # Make an executable from each .cpp file
 message("\nExecutables to be built:")
