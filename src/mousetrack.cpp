@@ -14,12 +14,13 @@ Point lastMouse;
 void onMouse(int event, int x, int y, int flags, void *param);
 void drawX(Mat &img, Point &center, Scalar color, int d);
 void drawPath(Mat &img, vector<Point> &points, Scalar color);
-void initKalmanFilter(KalmanFilter &KF, 
+void initKalmanFilter(KalmanFilter &KF,
                       Point &xy,
-                      Mat &transitionMatrix, 
-                      double processVariance, 
-                      double measurementVariance, 
+                      Mat &transitionMatrix,
+                      double processVariance,
+                      double measurementVariance,
                       double postErrorVariance);
+void printKF(KalmanFilter &KF);
 
 int main(int argc, char *const argv[])
 {
@@ -39,14 +40,9 @@ int main(int argc, char *const argv[])
       waitKey(30);
       continue;
     }
-    double procVar = 1e-4, measVar = 0.1, errVar = 0.1;
+    double procVar = 1e-4, measVar = 1e-3, errVar = 0.1;
     Mat tm = Mat::eye(4, 4, CV_32F);
-    initKalmanFilter(KF, mouseCoords, tm, procVar, measVar, errVar); 
-
-    cout << "measurementMatrix = " << endl << " "  << KF.measurementMatrix << endl << endl;
-    cout << "processNoiseCov = " << endl << " "  << KF.processNoiseCov << endl << endl;
-    cout << "measurementNoiseCov = " << endl << " "  << KF.measurementNoiseCov << endl << endl;
-    cout << "errorCovPost = " << endl << " "  << KF.errorCovPost << endl << endl;
+    initKalmanFilter(KF, mouseCoords, tm, procVar, measVar, errVar);
 
     mousev.clear();
     kalmanv.clear();
@@ -107,11 +103,11 @@ void drawPath(Mat &img, vector<Point> &points, Scalar color)
   }
 }
 
-void initKalmanFilter(KalmanFilter &KF, 
+void initKalmanFilter(KalmanFilter &KF,
                       Point &xy,
-                      Mat &transitionMatrix, 
-                      double procVariance, 
-                      double measVariance, 
+                      Mat &transitionMatrix,
+                      double procVariance,
+                      double measVariance,
                       double errorVariance)
 {
   // Initialize state vector (x, y, vx, vy)
@@ -127,4 +123,15 @@ void initKalmanFilter(KalmanFilter &KF,
   setIdentity(KF.processNoiseCov, Scalar::all(procVariance));
   setIdentity(KF.measurementNoiseCov, Scalar::all(measVariance));
   setIdentity(KF.errorCovPost, Scalar::all(errorVariance));
+
+  if (false)
+    printKF(KF);
+}
+
+void printKF(KalmanFilter &KF)
+{
+  cout << "measurementMatrix = " << endl << " "  << KF.measurementMatrix << endl << endl;
+  cout << "processNoiseCov = " << endl << " "  << KF.processNoiseCov << endl << endl;
+  cout << "measurementNoiseCov = " << endl << " "  << KF.measurementNoiseCov << endl << endl;
+  cout << "errorCovPost = " << endl << " "  << KF.errorCovPost << endl << endl;
 }
