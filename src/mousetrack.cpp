@@ -25,7 +25,6 @@ int main(int argc, char *const argv[])
 {
   Mat img(500, 500, CV_8UC3);
   KalmanFilter kf(4, 2, 0);
-  Mat measurement = Mat::zeros(2, 1, CV_32F);
   char code = (char) - 1;
   string windowName("Kalman Mouse Tracker");
   namedWindow(windowName);
@@ -48,23 +47,20 @@ int main(int argc, char *const argv[])
 
     while (true)
     {
+      // Predict, measure, correct.
+      // Result is state vector estimated by Kalman Filter (x,y,vx,vy).
       Mat prediction = kf.predict();
-      Point predictPt(prediction.at<float>(0), prediction.at<float>(1));
-
-      // Cursor xy position
-      measurement = (Mat_<float>(2, 1) << mouseCoords.x, mouseCoords.y);
-
-      // State vector estimated by Kalman Filter (x,y,vx,vy)
+      Mat measurement = (Mat_<float>(2, 1) << mouseCoords.x, mouseCoords.y);
       Mat kfstate = kf.correct(measurement);
 
       // Visualization
       mousePts.push_back(Point(mouseCoords.x, mouseCoords.y));
       kfPts.push_back(Point(kfstate.at<float>(0), kfstate.at<float>(1)));
       img = Scalar::all(0);
-      circle(img, mousePts.back(), 4, Scalar(0,0,255), -1, 8, 0);
-      circle(img, kfPts.back(), 4, Scalar(255,255,255), -1, 8, 0);
       drawPath(img, mousePts, Scalar(255, 255, 0));
       drawPath(img, kfPts, Scalar(0, 255, 0));
+      circle(img, mousePts.back(), 4, Scalar(0,0,255), -1, 8, 0);
+      circle(img, kfPts.back(), 4, Scalar(255,255,255), -1, 8, 0);
       imshow(windowName, img);
       code = (char)waitKey(100);
 
