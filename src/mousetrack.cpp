@@ -8,7 +8,6 @@ using namespace cv;
 using namespace std;
 
 Point mouseCoords(-1, -1);
-Point lastMouse;
 vector<Point> mousePts, kfPts; // For drawing
 
 void onMouse(int event, int x, int y, int flags, void *param);
@@ -76,7 +75,6 @@ int main(int argc, char *const argv[])
 
 void onMouse(int event, int x, int y, int flags, void *param)
 {
-  lastMouse = mouseCoords;
   mouseCoords.x = x;
   mouseCoords.y = y;
 }
