@@ -69,10 +69,6 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   setIdentity(kf.errorCovPost, Scalar::all(errVar));
 }
 
-// void TrackedPoint::step()
-// {
-// }
-
 void TrackedPoint::stepTo(Point &p)
 {
   lifetime++;
@@ -168,12 +164,6 @@ int main(int argc, char *const argv[])
   char code = char(-1);
   list<TrackedPoint>::iterator it;
 
-  // for (size_t i=0; i<npts; ++i)
-  // {
-  //   // Add simulated points to list
-  //   addSimPoint(simPts, img);
-  // }
-
   while (true)
   {
     int shortage = npts - simPts.size();
@@ -182,7 +172,6 @@ int main(int argc, char *const argv[])
       addSimPoint(simPts, img);
       shortage--;
     }
-    simPts.remove_if(outOfBounds);
 
     xym.clear();
     for (it = simPts.begin(); it != simPts.end(); ++it)
@@ -197,6 +186,7 @@ int main(int argc, char *const argv[])
       Point xymeas = addNoise(it->x, it->y, xsigma, ysigma);
       xym.push_back(Point(xymeas.x, xymeas.y));
     }
+    simPts.remove_if(outOfBounds);
 
     // Step observations to nearest measurement
     for (it = obsPts.begin(); xym.size() > 0 && it != obsPts.end(); ++it)
@@ -215,27 +205,23 @@ int main(int argc, char *const argv[])
       xym.remove(p);
     }
 
-    // Visualization
+    // Draw simulated points
     img = Scalar::all(0);
     for (it = simPts.begin(); it != simPts.end(); ++it)
     {
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
-        line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
-      // circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
-
-      // deque<Point> kt = it->kfTail;
-      // for (size_t j = 0; j < kt.size() - 1; j++)
-      //   line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
-      // circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+        line(img, ot[j], ot[j + 1], Scalar(100,100,100), 2);
+      circle(img, it->obsTail.back(), 4, Scalar(100,100,100), -1, 8, 0);
     }
 
-    // Measurement points
+    // Measurement points (these should not be visible if everything works).
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
     {
       circle(img, *ip, 4, Scalar(0,255,0), -1, 8, 0);
     }
 
+    // Draw observed points
     for (it = obsPts.begin(); it != obsPts.end(); ++it)
     {
       if (it->lifetime < 2) continue;
@@ -243,12 +229,12 @@ int main(int argc, char *const argv[])
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
         line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
-      // circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
+      circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
 
       deque<Point> kt = it->kfTail;
       for (size_t j = 0; j < kt.size() - 1; j++)
         line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
-      // circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+      circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
     }
 
     rectangle(img, border.tl(), border.br(), Scalar(255, 255, 255), 2, 8, 0);
