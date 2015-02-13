@@ -11,18 +11,25 @@ using namespace std;
 
 RNG rng(12345);
 
+Point addNoise(int x, int y, double xsigma, double ysigma)
+{
+  return Point(x + rng.gaussian(xsigma), y + rng.gaussian(ysigma));
+}
+
 class TrackedPoint
 {
 public:
-  TrackedPoint(int x0, int y0, int vx0, int vy0);
+  TrackedPoint(int x0in, int y0in, int vx0, int vy0);
   ~TrackedPoint() {}
-  void step();
-  double x,y,vx,vy;
+  void stepTo(Point &p);
+  Point nearestPoint(list<Point> &l, bool pop = true);
+  int x0,y0,x,y,vx,vy;
+  double v; // mean velocity = arc length of obsTail / obsTail.size();
   Point xyMin, xyMax;
-  deque<Point> obsTail;
-  deque<Point> kfTail;
+  deque<Point> obsTail, kfTail;
   long lifetime;
   bool inBounds;
+  int nTailPoints;
   KalmanFilter kf;
 };
 
@@ -31,15 +38,19 @@ bool outOfBounds(const TrackedPoint &t)
   return !t.inBounds;
 }
 
-TrackedPoint::TrackedPoint(int x0, int y0, int vx0, int vy0) :
-  x(x0),
-  y(y0),
-  vx(vx0),
+TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
+  x0(x0in),
+  y0(y0in),
+  x(x0in),
+  y(y0in),
+  vx(vx0), // dx/dt, <dx/dt>, or some given value, depending on implementation.
   vy(vy0),
+  v(0.0),
   xyMin(Point(0,0)),
   xyMax(Point(1000,1000)),
   lifetime(0),
   inBounds(true),
+  nTailPoints(50),
   kf(KalmanFilter(4,2,0))
 {
   Point xy(x, y);
@@ -58,15 +69,24 @@ TrackedPoint::TrackedPoint(int x0, int y0, int vx0, int vy0) :
   setIdentity(kf.errorCovPost, Scalar::all(errVar));
 }
 
-void TrackedPoint::step()
+// void TrackedPoint::step()
+// {
+// }
+
+void TrackedPoint::stepTo(Point &p)
 {
-  double xsigma = 4.0, ysigma = 4.0;
-  int nTailPoints = 50;
-  x += vx + rng.gaussian(xsigma);
-  y += vy + rng.gaussian(ysigma);
+  lifetime++;
+
+  x = p.x;
+  y = p.y;
+
   obsTail.push_back(Point(x, y));
   if (obsTail.size() > nTailPoints)
     obsTail.pop_front();
+
+  // Compute "historical" velocity of this point as the track length / # steps
+  vector<Point> tail(obsTail.begin(), obsTail.end());
+  v = arcLength(Mat(tail), true) / tail.size();
 
   if (x < xyMin.x || x > xyMax.x || y < xyMin.y || y > xyMax.y)
   {
@@ -75,18 +95,39 @@ void TrackedPoint::step()
   }
   else
   {
-    Mat prediction = kf.predict();
+    Mat pred = kf.predict();
     Mat measurement = (Mat_<float>(2, 1) << x, y);
     Mat kfState = kf.correct(measurement);
 
-    Point p(kfState.at<float>(0), kfState.at<float>(1));
-    kfTail.push_back(Point(p.x, p.y));
+    Point pk(kfState.at<float>(0), kfState.at<float>(1));
+    kfTail.push_back(Point(pk.x, pk.y));
     if (kfTail.size() > nTailPoints)
       kfTail.pop_front();
   }
 }
 
-void addPoint(list<TrackedPoint> &l, Mat &img)
+
+Point TrackedPoint::nearestPoint(list<Point> &l, bool pop)
+{
+  Point here(x,y);
+  double minDist = cv::norm(l.front() - here);
+  Point nearest(-1, -1);
+  for (list<Point>::iterator it = l.begin(); it != l.end(); ++it)
+  {
+    double dist = cv::norm(*it - here);
+    if (dist < minDist)
+    {
+      minDist = dist;
+      nearest = *it;
+    }
+  }
+  if (pop)
+    l.remove(nearest);
+
+  return nearest;
+}
+
+void addSimPoint(list<TrackedPoint> &l, Mat &img)
 {
   int x0 = 0, y0 = rng.uniform(50, img.rows-50);
   int vx0 = rng.uniform(3, 8), vy0 = rng.uniform(-1,1);
@@ -96,55 +137,121 @@ void addPoint(list<TrackedPoint> &l, Mat &img)
   l.push_back(t);
 }
 
+void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
+{
+  TrackedPoint t(p.x, p.y, 0, 0);
+  t.xyMin = Point(0, 0);
+  t.xyMax = Point(img.cols-1, img.rows-1);
+  l.push_back(t);
+}
+
 int main(int argc, char *const argv[])
 {
   int npts = 10;
 
-  list<TrackedPoint> tps;
+  // Simulated points following a smooth path (up to process noise).
+  // These points represent the underlying physical truth.
+  list<TrackedPoint> simPts;
+
+  // Position measurements in each frame and their noise parameters.
+  list<Point> xym;
+  double xsigma = 4.0, ysigma = 4.0;
+
+  // Observed points representing our best effort to reconstruct trajectories
+  // from noisy position measurements.
+  list<TrackedPoint> obsPts;
 
   Mat img(500, 1000, CV_8UC3);
+  Rect border(0, 0, img.cols-1, img.rows-1);
   string windowName("Point tracker");
   namedWindow(windowName);
   char code = char(-1);
+  list<TrackedPoint>::iterator it;
 
-  for (size_t i=0; i<npts; ++i)
-  {
-    addPoint(tps, img);
-  }
+  // for (size_t i=0; i<npts; ++i)
+  // {
+  //   // Add simulated points to list
+  //   addSimPoint(simPts, img);
+  // }
 
   while (true)
   {
-    int shortage = npts - tps.size();
+    int shortage = npts - simPts.size();
     while (shortage > 0)
     {
-      addPoint(tps, img);
+      addSimPoint(simPts, img);
       shortage--;
     }
+    simPts.remove_if(outOfBounds);
 
-    for (list<TrackedPoint>::iterator it = tps.begin(); it != tps.end(); ++it)
+    xym.clear();
+    for (it = simPts.begin(); it != simPts.end(); ++it)
     {
-      it->step();
-      TrackedPoint p = *it;
-    }
-    tps.remove_if(outOfBounds);
+      int x = it->x0 + it->vx * it->lifetime;
+      int y = it->y0 + it->vy * it->lifetime;
 
+      Point p(x,y);
+      it->stepTo(p);
+
+      // Collect less-than-perfect position measurements
+      Point xymeas = addNoise(it->x, it->y, xsigma, ysigma);
+      xym.push_back(Point(xymeas.x, xymeas.y));
+    }
+
+    // Step observations to nearest measurement
+    for (it = obsPts.begin(); xym.size() > 0 && it != obsPts.end(); ++it)
+    {
+      Point p = it->nearestPoint(xym);
+      double dist = cv::norm(p - Point(it->x, it->y));
+      it->stepTo(p);
+    }
+    obsPts.remove_if(outOfBounds);
+
+    // Create new observations from any new/unused measurements
+    for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
+    {
+      Point p = *ip;
+      addPoint(obsPts, p, img);
+      xym.remove(p);
+    }
 
     // Visualization
     img = Scalar::all(0);
-
-    for (list<TrackedPoint>::iterator it = tps.begin(); it != tps.end(); ++it)
+    for (it = simPts.begin(); it != simPts.end(); ++it)
     {
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
         line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
-      circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
+      // circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
+
+      // deque<Point> kt = it->kfTail;
+      // for (size_t j = 0; j < kt.size() - 1; j++)
+      //   line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
+      // circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+    }
+
+    // Measurement points
+    for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
+    {
+      circle(img, *ip, 4, Scalar(0,255,0), -1, 8, 0);
+    }
+
+    for (it = obsPts.begin(); it != obsPts.end(); ++it)
+    {
+      if (it->lifetime < 2) continue;
+
+      deque<Point> ot = it->obsTail;
+      for (size_t j = 0; j < ot.size() - 1; j++)
+        line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
+      // circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
 
       deque<Point> kt = it->kfTail;
       for (size_t j = 0; j < kt.size() - 1; j++)
         line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
-      circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+      // circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
     }
 
+    rectangle(img, border.tl(), border.br(), Scalar(255, 255, 255), 2, 8, 0);
     imshow(windowName, img);
     code = (char)waitKey(30);
 
