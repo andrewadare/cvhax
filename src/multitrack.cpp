@@ -22,8 +22,10 @@ public:
   TrackedPoint(int x0in, int y0in, int vx0, int vy0);
   ~TrackedPoint() {}
   void stepTo(Point &p);
+  void stay();
+  void coast();
   Point nearestPoint(list<Point> &l, bool pop = true);
-  int x0,y0,x,y,vx,vy;
+  int x0,y0,x,y,kx,ky,vx,vy,kvx,kvy;
   double v; // mean velocity = arc length of obsTail / obsTail.size();
   Point xyMin, xyMax;
   deque<Point> obsTail, kfTail;
@@ -32,6 +34,11 @@ public:
   int nTailPoints;
   KalmanFilter kf;
 };
+
+bool inBounds(Point &p, Mat &img)
+{
+  return (p.x >= 0 && p.x < img.cols && p.y >= 0 && p.y < img.rows);
+}
 
 bool outOfBounds(const TrackedPoint &t)
 {
@@ -43,8 +50,12 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   y0(y0in),
   x(x0in),
   y(y0in),
+  kx(x0in),
+  ky(y0in),
   vx(vx0), // dx/dt, <dx/dt>, or some given value, depending on implementation.
   vy(vy0),
+  kvx(vx0),
+  kvy(vy0),
   v(0.0),
   xyMin(Point(0,0)),
   xyMax(Point(1000,1000)),
@@ -69,6 +80,19 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   setIdentity(kf.errorCovPost, Scalar::all(errVar));
 }
 
+void TrackedPoint::stay()
+{
+  Point here(x,y);
+  stepTo(here);
+}
+
+void TrackedPoint::coast()
+{
+  Point next(x + kvx, y + kvy);
+  // cout << next.x << " " << next.y << endl;
+  stepTo(next);
+}
+
 void TrackedPoint::stepTo(Point &p)
 {
   lifetime++;
@@ -82,7 +106,7 @@ void TrackedPoint::stepTo(Point &p)
 
   // Compute "historical" velocity of this point as the track length / # steps
   vector<Point> tail(obsTail.begin(), obsTail.end());
-  v = arcLength(Mat(tail), true) / tail.size();
+  v = arcLength(Mat(tail), false) / tail.size();
 
   if (x < xyMin.x || x > xyMax.x || y < xyMin.y || y > xyMax.y)
   {
@@ -95,18 +119,26 @@ void TrackedPoint::stepTo(Point &p)
     Mat measurement = (Mat_<float>(2, 1) << x, y);
     Mat kfState = kf.correct(measurement);
 
-    Point pk(kfState.at<float>(0), kfState.at<float>(1));
-    kfTail.push_back(Point(pk.x, pk.y));
+    // Position and velocity of Kalman state
+    int kxprev = kx, kyprev = ky;
+    kx = kfState.at<float>(0);
+    ky = kfState.at<float>(1);
+    kvx = kx - kxprev;
+    kvy = ky - kyprev;
+
+    // cout << kf.statePost << endl;
+    // cout << kx << " " << ky << " " << kvx << " " << kvy << endl;
+
+    kfTail.push_back(Point(kx, ky));
     if (kfTail.size() > nTailPoints)
       kfTail.pop_front();
   }
 }
 
-
 Point TrackedPoint::nearestPoint(list<Point> &l, bool pop)
 {
   Point here(x,y);
-  double minDist = cv::norm(l.front() - here);
+  double minDist = 1e15; //cv::norm(l.front() - here);
   Point nearest(-1, -1);
   for (list<Point>::iterator it = l.begin(); it != l.end(); ++it)
   {
@@ -166,25 +198,23 @@ int main(int argc, char *const argv[])
 
   while (true)
   {
-    int shortage = npts - simPts.size();
-    while (shortage > 0)
-    {
+    while (simPts.size() < npts)
       addSimPoint(simPts, img);
-      shortage--;
-    }
 
-    xym.clear();
     for (it = simPts.begin(); it != simPts.end(); ++it)
     {
       int x = it->x0 + it->vx * it->lifetime;
       int y = it->y0 + it->vy * it->lifetime;
-
-      Point p(x,y);
-      it->stepTo(p);
+      Point newxy(x,y);
+      it->stepTo(newxy);
 
       // Collect less-than-perfect position measurements
-      Point xymeas = addNoise(it->x, it->y, xsigma, ysigma);
-      xym.push_back(Point(xymeas.x, xymeas.y));
+      if (it->inBounds)
+      {
+        Point meas = addNoise(it->x, it->y, xsigma, ysigma);
+        if (inBounds(meas, img))
+          xym.push_back(Point(meas.x, meas.y));
+      }
     }
     simPts.remove_if(outOfBounds);
 
@@ -193,16 +223,22 @@ int main(int argc, char *const argv[])
     {
       Point p = it->nearestPoint(xym);
       double dist = cv::norm(p - Point(it->x, it->y));
-      it->stepTo(p);
+
+      if (dist > 50)
+        it->coast();
+
+      // if (it->v > 5 && dist > 5*it->v)
+      //   it->coast();
+      else
+        it->stepTo(p);
     }
     obsPts.remove_if(outOfBounds);
 
-    // Create new observations from any new/unused measurements
+    // Create new tracked observations from any remaining measurements
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
     {
-      Point p = *ip;
-      addPoint(obsPts, p, img);
-      xym.remove(p);
+      addPoint(obsPts, *ip, img);
+      xym.remove(*ip);
     }
 
     // Draw simulated points
@@ -215,11 +251,9 @@ int main(int argc, char *const argv[])
       circle(img, it->obsTail.back(), 4, Scalar(100,100,100), -1, 8, 0);
     }
 
-    // Measurement points (these should not be visible if everything works).
+    // Debug: draw measurements (xym is empty if everything works).
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
-    {
       circle(img, *ip, 4, Scalar(0,255,0), -1, 8, 0);
-    }
 
     // Draw observed points
     for (it = obsPts.begin(); it != obsPts.end(); ++it)
