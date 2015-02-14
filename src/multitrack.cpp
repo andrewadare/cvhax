@@ -196,7 +196,7 @@ void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
 
 int main(int argc, char *const argv[])
 {
-  int npts = 60;
+  int npts = 1000;
 
   // Simulated points following a smooth path (up to process noise).
   // These points represent the underlying physical truth.
