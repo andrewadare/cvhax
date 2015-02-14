@@ -32,6 +32,8 @@ public:
   long lifetime;
   bool inBounds;
   int nTailPoints;
+  int nCoasts, maxNCoasts;
+  double coastLength, maxCoastLength;
   KalmanFilter kf;
 };
 
@@ -43,6 +45,16 @@ bool inBounds(Point &p, Mat &img)
 bool outOfBounds(const TrackedPoint &t)
 {
   return !t.inBounds;
+}
+
+bool coastedTooLong(const TrackedPoint &t)
+{
+  return t.nCoasts > t.maxNCoasts;
+}
+
+bool coastedTooFar(const TrackedPoint &t)
+{
+  return t.coastLength > t.maxCoastLength;
 }
 
 TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
@@ -62,6 +74,10 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   lifetime(0),
   inBounds(true),
   nTailPoints(50),
+  nCoasts(0),
+  maxNCoasts(30),
+  coastLength(0.),
+  maxCoastLength(1000.),
   kf(KalmanFilter(4,2,0))
 {
   Point xy(x, y);
@@ -89,13 +105,16 @@ void TrackedPoint::stay()
 void TrackedPoint::coast()
 {
   Point next(x + kvx, y + kvy);
-  // cout << next.x << " " << next.y << endl;
+  coastLength += norm(next - Point(x,y));
   stepTo(next);
+  nCoasts++;
 }
 
 void TrackedPoint::stepTo(Point &p)
 {
   lifetime++;
+
+  int xdot = p.x - x, ydot = p.y - y;
 
   x = p.x;
   y = p.y;
@@ -115,30 +134,31 @@ void TrackedPoint::stepTo(Point &p)
   }
   else
   {
-    Mat pred = kf.predict();
     Mat measurement = (Mat_<float>(2, 1) << x, y);
-    Mat kfState = kf.correct(measurement);
+    kf.predict();
+    kf.correct(measurement);
 
     // Position and velocity of Kalman state
-    int kxprev = kx, kyprev = ky;
-    kx = kfState.at<float>(0);
-    ky = kfState.at<float>(1);
-    kvx = kx - kxprev;
-    kvy = ky - kyprev;
-
-    // cout << kf.statePost << endl;
-    // cout << kx << " " << ky << " " << kvx << " " << kvy << endl;
+    kx = kf.statePost.at<float>(0);
+    ky = kf.statePost.at<float>(1);
 
     kfTail.push_back(Point(kx, ky));
-    if (kfTail.size() > nTailPoints)
+    size_t N = kfTail.size();
+    if (N > nTailPoints)
       kfTail.pop_front();
+
+    if (N > 2)
+    {
+      kvx = (kx - kfTail[N-3].x);
+      kvy = (ky - kfTail[N-3].y);
+    }
   }
 }
 
 Point TrackedPoint::nearestPoint(list<Point> &l, bool pop)
 {
   Point here(x,y);
-  double minDist = 1e15; //cv::norm(l.front() - here);
+  double minDist = 1e15;
   Point nearest(-1, -1);
   for (list<Point>::iterator it = l.begin(); it != l.end(); ++it)
   {
@@ -170,12 +190,13 @@ void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
   TrackedPoint t(p.x, p.y, 0, 0);
   t.xyMin = Point(0, 0);
   t.xyMax = Point(img.cols-1, img.rows-1);
+  t.maxCoastLength = 0.2*norm(Point(img.cols, img.rows));
   l.push_back(t);
 }
 
 int main(int argc, char *const argv[])
 {
-  int npts = 10;
+  int npts = 60;
 
   // Simulated points following a smooth path (up to process noise).
   // These points represent the underlying physical truth.
@@ -226,13 +247,12 @@ int main(int argc, char *const argv[])
 
       if (dist > 50)
         it->coast();
-
-      // if (it->v > 5 && dist > 5*it->v)
-      //   it->coast();
       else
         it->stepTo(p);
     }
     obsPts.remove_if(outOfBounds);
+    obsPts.remove_if(coastedTooLong);
+    obsPts.remove_if(coastedTooFar);
 
     // Create new tracked observations from any remaining measurements
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
