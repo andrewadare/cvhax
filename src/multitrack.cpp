@@ -11,11 +11,6 @@ using namespace std;
 
 RNG rng(12345);
 
-Point addNoise(int x, int y, double xsigma, double ysigma)
-{
-  return Point(x + rng.gaussian(xsigma), y + rng.gaussian(ysigma));
-}
-
 class TrackedPoint
 {
 public:
@@ -58,26 +53,26 @@ bool coastedTooFar(const TrackedPoint &t)
 }
 
 TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
-  x0(x0in),
+  x0(x0in),                  // Position at initialization
   y0(y0in),
-  x(x0in),
+  x(x0in),                   // Measured position
   y(y0in),
-  kx(x0in),
+  kx(x0in),                  // Kalman position
   ky(y0in),
-  vx(vx0), // dx/dt, <dx/dt>, or some given value, depending on implementation.
+  vx(vx0),                   // Step velocity dx/dt (= step size).
   vy(vy0),
-  kvx(vx0),
+  kvx(vx0),                  // Kalman velocity
   kvy(vy0),
-  v(0.0),
-  xyMin(Point(0,0)),
+  v(0.0),                    // Historical speed
+  xyMin(Point(0,0)),         // Boundaries
   xyMax(Point(1000,1000)),
   lifetime(0),
   inBounds(true),
   nTailPoints(50),
-  nCoasts(0),
-  maxNCoasts(30),
-  coastLength(0.),
-  maxCoastLength(1000.),
+  nCoasts(0), // Number of frames this point "lost the lock" and coasted.
+  maxNCoasts(20),
+  coastLength(0.),           // Coast distance so far
+  maxCoastLength(1000.),     // Allowable coast distance
   kf(KalmanFilter(4,2,0))
 {
   Point xy(x, y);
@@ -113,8 +108,6 @@ void TrackedPoint::coast()
 void TrackedPoint::stepTo(Point &p)
 {
   lifetime++;
-
-  int xdot = p.x - x, ydot = p.y - y;
 
   x = p.x;
   y = p.y;
@@ -188,10 +181,17 @@ void addSimPoint(list<TrackedPoint> &l, Mat &img)
 void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
 {
   TrackedPoint t(p.x, p.y, 0, 0);
+  t.x0 = p.x;
+  t.y0 = p.y;
   t.xyMin = Point(0, 0);
   t.xyMax = Point(img.cols-1, img.rows-1);
-  t.maxCoastLength = 0.2*norm(Point(img.cols, img.rows));
+  t.maxCoastLength = 0.1*norm(Point(img.cols, img.rows));
   l.push_back(t);
+}
+
+Point addNoise(int x, int y, double xsigma, double ysigma)
+{
+  return Point(x + rng.gaussian(xsigma), y + rng.gaussian(ysigma));
 }
 
 int main(int argc, char *const argv[])
@@ -275,7 +275,8 @@ int main(int argc, char *const argv[])
       circle(img, it->obsTail.back(), 4, Scalar(100,100,100), -1, 8, 0);
     }
 
-    // Debug: draw measurements (xym is empty if everything works).
+    // Debug: draw this frame's measurements.
+    // If everything is working, xym is empty and no green points are visible.
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
       circle(img, *ip, 4, Scalar(0,255,0), -1, 8, 0);
 
