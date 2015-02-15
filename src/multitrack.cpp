@@ -149,8 +149,8 @@ void TrackedPoint::stepTo(Point &p)
 
     if (N > 2)
     {
-      kvx = (kx - kfTail[N-3].x);
-      kvy = (ky - kfTail[N-3].y);
+      kvx = (kx - kfTail[N-3].x)/2;
+      kvy = (ky - kfTail[N-3].y)/2;
     }
   }
 }
@@ -196,7 +196,7 @@ void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
 
 int main(int argc, char *const argv[])
 {
-  int npts = 1000;
+  int npts = 10;
 
   // Simulated points following a smooth path (up to process noise).
   // These points represent the underlying physical truth.
@@ -219,9 +219,11 @@ int main(int argc, char *const argv[])
 
   while (true)
   {
+    // Generate simulated points.
     while (simPts.size() < npts)
       addSimPoint(simPts, img);
 
+    // Advance simulated points. Simulate position measurements.
     for (it = simPts.begin(); it != simPts.end(); ++it)
     {
       int x = it->x0 + it->vx * it->lifetime;
@@ -229,7 +231,7 @@ int main(int argc, char *const argv[])
       Point newxy(x,y);
       it->stepTo(newxy);
 
-      // Collect less-than-perfect position measurements
+      // Collect less-than-perfect position measurements.
       if (it->inBounds)
       {
         Point meas = addNoise(it->x, it->y, xsigma, ysigma);
@@ -239,16 +241,18 @@ int main(int argc, char *const argv[])
     }
     simPts.remove_if(outOfBounds);
 
-    // Step observations to nearest measurement
+    // Step observations to the nearest available measurement.
+    // If no nearby measurement is found in this frame, coast.
+    // In real use, "nearby" might be ~ 2x typical convex hull radii.
     for (it = obsPts.begin(); xym.size() > 0 && it != obsPts.end(); ++it)
     {
       Point p = it->nearestPoint(xym);
       double dist = cv::norm(p - Point(it->x, it->y));
 
-      if (dist > 50)
-        it->coast();
-      else
+      if (dist < 50)
         it->stepTo(p);
+      else
+        it->coast();
     }
     obsPts.remove_if(outOfBounds);
     obsPts.remove_if(coastedTooLong);
