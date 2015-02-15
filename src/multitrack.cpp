@@ -73,16 +73,16 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   maxNCoasts(20),
   coastLength(0.),           // Coast distance so far
   maxCoastLength(1000.),     // Allowable coast distance
-  kf(KalmanFilter(4,2,0))
+  kf(KalmanFilter(2,2))
 {
   Point xy(x, y);
   double procVar = 1e-4, measVar = 1e-3, errVar = 0.1;
 
-  kf.transitionMatrix = Mat::eye(4, 4, CV_32F);
+  kf.transitionMatrix = Mat::eye(2, 2, CV_32F);
   kf.statePre.at<float>(0) = xy.x;
   kf.statePre.at<float>(1) = xy.y;
-  kf.statePre.at<float>(2) = 0;
-  kf.statePre.at<float>(3) = 0;
+  // kf.statePre.at<float>(2) = 0;
+  // kf.statePre.at<float>(3) = 0;
 
   // Measurement and covariance matrices (all scaled identity matrices).
   setIdentity(kf.measurementMatrix);
