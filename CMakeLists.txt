@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 
 project(rgbseg)
 
+set(CMAKE_CXX_FLAGS "-g -Wall")
+
 # Tell the find_package() macro where to look for OpenCV.
 # Only needed if installed files are not in an expected location.
 #
