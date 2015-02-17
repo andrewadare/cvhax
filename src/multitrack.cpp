@@ -257,10 +257,9 @@ int main(int argc, char *const argv[])
     obsPts.remove_if(coastedTooFar);
 
     // Create new tracked observations from any remaining measurements
-    for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
+    for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ip = xym.erase(ip))
     {
       addPoint(obsPts, *ip, img);
-      xym.remove(*ip);
     }
 
     // Draw simulated points
