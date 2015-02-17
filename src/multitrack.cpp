@@ -111,7 +111,7 @@ void TrackedPoint::stepTo(Point &p)
   y = p.y;
 
   obsTail.push_back(Point(x, y));
-  if (obsTail.size() > nTailPoints)
+  if (obsTail.size() > (size_t)nTailPoints)
     obsTail.pop_front();
 
   // Compute "historical" velocity of this point as the track length / # steps
@@ -134,7 +134,7 @@ void TrackedPoint::stepTo(Point &p)
     ky = kf.statePost.at<float>(1);
 
     kfTail.push_back(Point(kx, ky));
-    size_t N = kfTail.size();
+    int N = kfTail.size();
     if (N > nTailPoints)
       kfTail.pop_front();
 
@@ -218,7 +218,7 @@ int main(int argc, char *const argv[])
   while (true)
   {
     // Generate simulated points.
-    while (simPts.size() < npts)
+    while (simPts.size() < (size_t)npts)
       addSimPoint(simPts, img);
 
     // Advance simulated points. Simulate position measurements.
