@@ -47,12 +47,33 @@ void thresh_callback(int, void *)
   Canny(src_gray, canny_output, thresh, thresh * 2, 3);
   // threshold(src_gray, canny_output, thresh, 255, THRESH_BINARY );
 
+  // Dilation and erosion structuring elements
+  int ds = 15, es = 12; // Sizes of morphology elements (px)
+  Mat dkern = getStructuringElement(cv::MORPH_ELLIPSE,
+                                    Size(2*ds + 1, 2*ds+1),
+                                    Point(ds, ds));
+  Mat ekern = getStructuringElement(cv::MORPH_ELLIPSE,
+                                    Size(2*es + 1, 2*es+1),
+                                    Point(es, es));
+
+  dilate(canny_output, canny_output, dkern);
+  erode(canny_output, canny_output, ekern);
+
   imshow("Result of Canny edge detection", canny_output);
 
   // Find contours. Image is modified in place.
-  int retMode = RETR_EXTERNAL;
-  // int retMode = RETR_TREE; // RETR_EXTERNAL;
+  int retMode = RETR_EXTERNAL; // RETR_TREE; // RETR_EXTERNAL;
   findContours(canny_output, contours, hierarchy, retMode, CHAIN_APPROX_SIMPLE);
+
+  Mat rgbcont = cv::Mat(canny_output.size(), CV_8UC3);
+  cv::cvtColor(canny_output, rgbcont, COLOR_GRAY2RGB);
+
+  Scalar green(0,255,0);
+  for (size_t i = 0; i < contours.size(); i++)
+    drawContours(rgbcont, contours, (int)i, green, 2, 8, hierarchy, 0);
+
+  // For some reason the edges are not being drawn.
+  imshow("Edges and contours", rgbcont);
 
   // Find the convex hull object for each contour
   vector<vector<Point> > hulls;
