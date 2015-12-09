@@ -215,11 +215,20 @@ int main(int argc, char *const argv[])
   char code = char(-1);
   list<TrackedPoint>::iterator it;
 
+  int counter = 0;
   while (true)
   {
+    counter++;
     // Generate simulated points.
     while (simPts.size() < (size_t)npts)
       addSimPoint(simPts, img);
+
+    // // In the first frame only, start the points at random x positions.
+    // if (counter == 1)
+    // {
+    //   for (it = simPts.begin(); it != simPts.end(); ++it)
+    //     it->x0 = rng.uniform(0, img.cols-50);
+    // }
 
     // Advance simulated points. Simulate position measurements.
     for (it = simPts.begin(); it != simPts.end(); ++it)
@@ -281,20 +290,32 @@ int main(int argc, char *const argv[])
     for (it = obsPts.begin(); it != obsPts.end(); ++it)
     {
       if (it->lifetime < 2) continue;
+      if (counter < 10) continue; // Only draw the sim pts
 
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
-        line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
+        if (counter > 11)
+          line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
       circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
 
-      deque<Point> kt = it->kfTail;
-      for (size_t j = 0; j < kt.size() - 1; j++)
-        line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
-      circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+      if (counter > 11)
+      {
+        deque<Point> kt = it->kfTail;
+        for (size_t j = 0; j < kt.size() - 1; j++)
+          line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
+        circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+      }
     }
 
     rectangle(img, border.tl(), border.br(), Scalar(255, 255, 255), 2, 8, 0);
     imshow(windowName, img);
+
+    // if (counter < 200)
+    // {
+    //   char imgName[256];
+    //   sprintf(imgName, "multitrack_%04d.jpg", counter);
+    //   imwrite(imgName, img);
+    // }
     code = (char)waitKey(30);
 
     if (code == 27 || code == 'q')
