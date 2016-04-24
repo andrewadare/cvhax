@@ -13,6 +13,8 @@ if(EXISTS "${CMAKE_INSTALL_PREFIX}/share/OpenCV/OpenCVConfig.cmake")
 # For local/custom OpenCV install location (modify/add as needed)
 elseif(EXISTS "$ENV{HOME}/opencv/install/share/OpenCV/OpenCVConfig.cmake")
   set(OpenCV_DIR $ENV{HOME}/opencv/install/share/OpenCV)
+elseif(EXISTS "$ENV{HOME}/sw/OpenCV3.1/share/OpenCV/OpenCVConfig.cmake")
+  set(OpenCV_DIR $ENV{HOME}/sw/OpenCV3.1/share/OpenCV)
 endif()
 
 find_package(OpenCV REQUIRED)
