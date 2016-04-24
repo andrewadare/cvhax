@@ -4,18 +4,15 @@ project(rgbseg)
 
 set(CMAKE_CXX_FLAGS "-g -Wall")
 
-# Tell the find_package() macro where to look for OpenCV.
-# Only needed if installed files are not in an expected location.
-#
-# For system-wide install location (default is /usr/local)
-if(EXISTS "${CMAKE_INSTALL_PREFIX}/share/OpenCV/OpenCVConfig.cmake")
-  set(OpenCV_DIR ${CMAKE_INSTALL_PREFIX}/share/OpenCV)
-# For local/custom OpenCV install location (modify/add as needed)
-elseif(EXISTS "$ENV{HOME}/opencv/install/share/OpenCV/OpenCVConfig.cmake")
-  set(OpenCV_DIR $ENV{HOME}/opencv/install/share/OpenCV)
-elseif(EXISTS "$ENV{HOME}/sw/OpenCV3.1/share/OpenCV/OpenCVConfig.cmake")
-  set(OpenCV_DIR $ENV{HOME}/sw/OpenCV3.1/share/OpenCV)
-endif()
+# If the find_package() macro fails to locate your OpenCV installation, or if
+# you wish to use a "custom" OpenCV build, here are two solutions:
+#   1. Set OpenCV_DIR as an environment variable.
+#      export OpenCV_DIR=/path/to/OpenCVConfig.cmake.
+#   2. Set OpenCV_DIR as a CMake variable here, e.g.
+#      if(EXISTS "${CMAKE_INSTALL_PREFIX}/share/OpenCV/OpenCVConfig.cmake")
+#        set(OpenCV_DIR ${CMAKE_INSTALL_PREFIX}/share/OpenCV)
+#      endif()
+# The OpenCVConfig.cmake file contains some useful build info.
 
 find_package(OpenCV REQUIRED)
 message("\nOpenCV_DIR: " ${OpenCV_DIR})
