@@ -17,8 +17,14 @@ RNG rng(12345);
 
 void thresh_callback(int, void *);
 
-int main(int, char **argv)
+int main(int argc, char **argv)
 {
+  if (argc < 2)
+  {
+    printf("Usage: seg <image>\n");
+    return -1;
+  }
+
   // Load source image and convert it to gray
   src = imread(argv[1], 1);
 
@@ -35,7 +41,7 @@ int main(int, char **argv)
   thresh_callback(0, 0);
 
   waitKey(0);
-  return (0);
+  return 0;
 }
 
 void thresh_callback(int, void *)
@@ -50,10 +56,10 @@ void thresh_callback(int, void *)
   // Dilation and erosion structuring elements
   int ds = 15, es = 12; // Sizes of morphology elements (px)
   Mat dkern = getStructuringElement(cv::MORPH_ELLIPSE,
-                                    Size(2*ds + 1, 2*ds+1),
+                                    Size(2 * ds + 1, 2 * ds + 1),
                                     Point(ds, ds));
   Mat ekern = getStructuringElement(cv::MORPH_ELLIPSE,
-                                    Size(2*es + 1, 2*es+1),
+                                    Size(2 * es + 1, 2 * es + 1),
                                     Point(es, es));
 
   dilate(canny_output, canny_output, dkern);
@@ -68,7 +74,7 @@ void thresh_callback(int, void *)
   Mat rgbcont = cv::Mat(canny_output.size(), CV_8UC3);
   cv::cvtColor(canny_output, rgbcont, COLOR_GRAY2RGB);
 
-  Scalar green(0,255,0);
+  Scalar green(0, 255, 0);
   for (size_t i = 0; i < contours.size(); i++)
     drawContours(rgbcont, contours, (int)i, green, 2, 8, hierarchy, 0);
 

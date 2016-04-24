@@ -20,7 +20,7 @@ public:
   void stay();
   void coast();
   Point nearestPoint(list<Point> &l, bool pop = true);
-  int x0,y0,x,y,kx,ky,vx,vy,kvx,kvy;
+  int x0, y0, x, y, kx, ky, vx, vy, kvx, kvy;
   double v; // mean velocity = arc length of obsTail / obsTail.size();
   Point xyMin, xyMax;
   deque<Point> obsTail, kfTail;
@@ -64,8 +64,8 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   kvx(vx0),                  // Kalman velocity
   kvy(vy0),
   v(0.0),                    // Historical speed
-  xyMin(Point(0,0)),         // Boundaries
-  xyMax(Point(1000,1000)),
+  xyMin(Point(0, 0)),        // Boundaries
+  xyMax(Point(1000, 1000)),
   lifetime(0),
   inBounds(true),
   nTailPoints(50),
@@ -73,7 +73,7 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
   maxNCoasts(20),
   coastLength(0.),           // Coast distance so far
   maxCoastLength(1000.),     // Allowable coast distance
-  kf(KalmanFilter(2,2))      // 2 state pars, 2 measurement inputs (both x,y)
+  kf(KalmanFilter(2, 2))     // 2 state pars, 2 measurement inputs (both x,y)
 {
   Point xy(x, y);
   double procVar = 1e-4, measVar = 1e-3, errVar = 0.1;
@@ -91,14 +91,14 @@ TrackedPoint::TrackedPoint(int x0in, int y0in, int vx0, int vy0) :
 
 void TrackedPoint::stay()
 {
-  Point here(x,y);
+  Point here(x, y);
   stepTo(here);
 }
 
 void TrackedPoint::coast()
 {
   Point next(x + kvx, y + kvy);
-  coastLength += norm(next - Point(x,y));
+  coastLength += norm(next - Point(x, y));
   stepTo(next);
   nCoasts++;
 }
@@ -140,15 +140,15 @@ void TrackedPoint::stepTo(Point &p)
 
     if (N > 2)
     {
-      kvx = (kx - kfTail[N-3].x)/2;
-      kvy = (ky - kfTail[N-3].y)/2;
+      kvx = (kx - kfTail[N - 3].x) / 2;
+      kvy = (ky - kfTail[N - 3].y) / 2;
     }
   }
 }
 
 Point TrackedPoint::nearestPoint(list<Point> &l, bool pop)
 {
-  Point here(x,y);
+  Point here(x, y);
   double minDist = 1e15;
   Point nearest(-1, -1);
   for (list<Point>::iterator it = l.begin(); it != l.end(); ++it)
@@ -168,11 +168,11 @@ Point TrackedPoint::nearestPoint(list<Point> &l, bool pop)
 
 void addSimPoint(list<TrackedPoint> &l, Mat &img)
 {
-  int x0 = 0, y0 = rng.uniform(50, img.rows-50);
-  int vx0 = rng.uniform(3, 8), vy0 = rng.uniform(-1,1);
+  int x0 = 0, y0 = rng.uniform(50, img.rows - 50);
+  int vx0 = rng.uniform(3, 8), vy0 = rng.uniform(-1, 1);
   TrackedPoint t(x0, y0, vx0, vy0);
   t.xyMin = Point(0, 0);
-  t.xyMax = Point(img.cols-1, img.rows-1);
+  t.xyMax = Point(img.cols - 1, img.rows - 1);
   l.push_back(t);
 }
 
@@ -182,8 +182,8 @@ void addPoint(list<TrackedPoint> &l, Point &p, Mat &img)
   t.x0 = p.x;
   t.y0 = p.y;
   t.xyMin = Point(0, 0);
-  t.xyMax = Point(img.cols-1, img.rows-1);
-  t.maxCoastLength = 0.1*norm(Point(img.cols, img.rows));
+  t.xyMax = Point(img.cols - 1, img.rows - 1);
+  t.maxCoastLength = 0.1 * norm(Point(img.cols, img.rows));
   l.push_back(t);
 }
 
@@ -209,7 +209,7 @@ int main(int argc, char *const argv[])
   list<TrackedPoint> obsPts;
 
   Mat img(500, 1000, CV_8UC3);
-  Rect border(0, 0, img.cols-1, img.rows-1);
+  Rect border(0, 0, img.cols - 1, img.rows - 1);
   string windowName("Point tracker");
   namedWindow(windowName);
   char code = char(-1);
@@ -235,7 +235,7 @@ int main(int argc, char *const argv[])
     {
       int x = it->x0 + it->vx * it->lifetime;
       int y = it->y0 + it->vy * it->lifetime;
-      Point newxy(x,y);
+      Point newxy(x, y);
       it->stepTo(newxy);
 
       // Collect less-than-perfect position measurements.
@@ -277,14 +277,18 @@ int main(int argc, char *const argv[])
     {
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
-        line(img, ot[j], ot[j + 1], Scalar(100,100,100), 2);
-      circle(img, it->obsTail.back(), 4, Scalar(100,100,100), -1, 8, 0);
+      {
+        line(img, ot[j], ot[j + 1], Scalar(100, 100, 100), 2);
+      }
+      circle(img, it->obsTail.back(), 4, Scalar(100, 100, 100), -1, 8, 0);
     }
 
     // Debug: draw this frame's measurements.
     // If everything is working, xym is empty and no green points are visible.
     for (list<Point>::iterator ip = xym.begin(); ip != xym.end(); ++ip)
-      circle(img, *ip, 4, Scalar(0,255,0), -1, 8, 0);
+    {
+      circle(img, *ip, 4, Scalar(0, 255, 0), -1, 8, 0);
+    }
 
     // Draw observed points
     for (it = obsPts.begin(); it != obsPts.end(); ++it)
@@ -294,16 +298,22 @@ int main(int argc, char *const argv[])
 
       deque<Point> ot = it->obsTail;
       for (size_t j = 0; j < ot.size() - 1; j++)
+      {
         if (counter > 11)
-          line(img, ot[j], ot[j + 1], Scalar(0,0,255), 2);
-      circle(img, it->obsTail.back(), 4, Scalar(0,0,255), -1, 8, 0);
+        {
+          line(img, ot[j], ot[j + 1], Scalar(0, 0, 255), 2);
+        }
+      }
+      circle(img, it->obsTail.back(), 4, Scalar(0, 0, 255), -1, 8, 0);
 
       if (counter > 11)
       {
         deque<Point> kt = it->kfTail;
         for (size_t j = 0; j < kt.size() - 1; j++)
-          line(img, kt[j], kt[j + 1], Scalar(255,255,255), 2);
-        circle(img, it->kfTail.back(), 4, Scalar(255,255,255), -1, 8, 0);
+        {
+          line(img, kt[j], kt[j + 1], Scalar(255, 255, 255), 2);
+        }
+        circle(img, it->kfTail.back(), 4, Scalar(255, 255, 255), -1, 8, 0);
       }
     }
 

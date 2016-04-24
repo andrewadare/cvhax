@@ -58,8 +58,8 @@ int main(int argc, char *const argv[])
       img = Scalar::all(0);
       drawPath(img, mousePts, Scalar(255, 255, 0));
       drawPath(img, kfPts, Scalar(0, 255, 0));
-      circle(img, mousePts.back(), 4, Scalar(0,0,255), -1, 8, 0);
-      circle(img, kfPts.back(), 4, Scalar(255,255,255), -1, 8, 0);
+      circle(img, mousePts.back(), 4, Scalar(0, 0, 255), -1, 8, 0);
+      circle(img, kfPts.back(), 4, Scalar(255, 255, 255), -1, 8, 0);
       imshow(windowName, img);
       code = (char)waitKey(100);
 
