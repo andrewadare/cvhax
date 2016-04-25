@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(rgbseg)
+project(cvhax)
 
 set(CMAKE_CXX_FLAGS "-g -Wall")
 
@@ -17,7 +17,17 @@ set(CMAKE_CXX_FLAGS "-g -Wall")
 find_package(OpenCV REQUIRED)
 message("\nOpenCV_DIR: " ${OpenCV_DIR})
 
-include_directories(${OpenCV_INCLUDE_DIRS})
+# The OPENNI2_REDIST and OPENNI2_INCLUDE variables are defined as part of the
+# OpenNI2 installation process (in the OpenNIDevEnvironment file), and they
+# must be exported for the libs and headers to be found here.
+find_library(OpenNI2_LIB
+             NAMES OpenNI2
+             PATHS $ENV{OPENNI2_REDIST})
+
+message("\nOpenNI2_LIB: " ${OpenNI2_LIB})
+
+include_directories(${OpenCV_INCLUDE_DIRS}
+                    $ENV{OPENNI2_INCLUDE})
 
 set(SRC ${PROJECT_SOURCE_DIR}/src)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -32,7 +42,11 @@ foreach(CPPFILE ${MY_CPPS})
   string(REPLACE ".cpp" "" exename ${CPPFILE})
   # Generate foo executable
   add_executable(${exename} ${SRC}/${CPPFILE})
-  target_link_libraries(${exename} ${OpenCV_LIBS})
+  target_link_libraries(
+    ${exename}
+    ${OpenCV_LIBS}
+    ${OpenNI2_LIB})
+
   # Print executable list
   message("  ${exename}")
 endforeach()
