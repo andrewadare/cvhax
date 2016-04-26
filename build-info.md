@@ -1,9 +1,10 @@
 # Building OpenCV on Linux
 Some notes:
-1. I was fortunate to find a thorough (and recent!) [PyImageSearch Post](http://www.pyimagesearch.com/2015/10/26/how-to-install-opencv-3-on-raspbian-jessie/) for guidance.
-2. I have OpenNI2 built already, and included here as a dependency. Edit the cmake flag below to modify.
-3. I built OpenCV on my laptop (Dell XPS 9550, Ubuntu 16.04) and on a Raspberry Pi 3 (Raspbian Jesse 2016-03-18, kernel 4.1) using literally identical steps--exactly those listed here.
-4. Always good to do `sudo apt update` first (but I forgot).
+
+  1. I was fortunate to find a thorough (and recent!) [PyImageSearch Post](http://www.pyimagesearch.com/2015/10/26/how-to-install-opencv-3-on-raspbian-jessie/) for guidance.
+  2. I have OpenNI2 built already, and included here as a dependency. Edit the cmake flag below to modify.
+  3. I built OpenCV on my laptop (Dell XPS 9550, Ubuntu 16.04) and on a Raspberry Pi 3 (Raspbian Jesse 2016-03-18, kernel 4.1) using literally identical steps--exactly those listed here.
+  4. Always good to do `sudo apt update` first (but I forgot).
 
 ## Clone opencv and opencv_contrib from GitHub.
 ```
