@@ -121,6 +121,7 @@ class CameraCalibrator:
         """Collect data for the optimization problem that will find the
         intrinsic camera parameters.
         """
+        failures = []
         for name in self.image_names:
             im, h, w = self.read(name)
             im_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
@@ -128,13 +129,14 @@ class CameraCalibrator:
 
             if ret is False:
                 print(f"Skipping {name} - corners not found")
-                self.image_names.remove(name)
-                continue
+                failures.append(name)
             else:
                 print(f"{name} - corners found")
+                self.world_point_list.append(self.world_corners)
+                self.image_point_list.append(px_corners)
 
-            self.world_point_list.append(self.world_corners)
-            self.image_point_list.append(px_corners)
+        for name in failures:
+            self.image_names.remove(name)
 
     def solve(self):
         results = cv2.calibrateCamera(
@@ -193,7 +195,7 @@ class CameraCalibrator:
             n = len(im_pts)
             error = cv2.norm(self.image_point_list[i], im_pts, cv2.NORM_L2) / n
             mean_error += error
-        mean_error /= len(self.world_point_list) * np.hypot(w, h)
+        # mean_error /= len(self.world_point_list) * np.hypot(w, h)
         return mean_error
 
     def run(self):

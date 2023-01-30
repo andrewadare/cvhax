@@ -29,7 +29,7 @@ def main():
     assert args.config.is_file(), f"Invalid config file: {args.config}"
     # assert args.output_dir.is_dir(), f"Not a directory: {args.output_dir}"
 
-    image_files = args.input_dir.glob("*")
+    image_files = sorted(args.input_dir.glob("*"))
     image_names = [str(f) for f in image_files if f.is_file()]
     print("\n".join(image_names))
 
